@@ -1,1 +1,1 @@
-# genomestats-snakemake
+# vcfstats-snakemake
