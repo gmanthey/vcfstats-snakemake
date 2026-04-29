@@ -1,0 +1,60 @@
+localrules: all
+configfile: "config.yml"
+
+method_translation = {
+    "TajimasD": "--TajimaD {window_size}",
+    "heterozygosity": "--het",
+    "hardy_weinberg": "--hardy",
+    "Site_pi": "--site-pi",
+    "Window_pi": "--window-pi {window_size}",
+    "ROH": "--LROH"
+}
+
+def get_populations():
+    populations = {}
+    with open(config['populations_file']) as f:
+        for line in f:
+            line = line.strip().split()
+            if len(line) < 2:
+                population = 'all'
+            else:
+                population = line[1]
+            if population not in populations:
+                populations[population] = []
+            populations[population].extend(line[0])
+
+    return populations
+
+def get_chromosomes():
+    chromosomes = []
+    with open(config["chromosome_file"], 'r') as f:
+        for line in f:
+            line = line.strip()
+            chromosomes.append(line)
+
+    return chromosomes
+
+rule all:
+    input:
+        expand("results/{method}/{population}.txt", method=method_translation.keys(), population=get_populations().keys())
+
+rule population_vcf:
+    input:
+        config['vcf_file']
+    output:
+        temp("results/vcf/{population}.vcf.gz"),
+        temp("results/vcf/{population}.vcf.gz.csi")
+    run:
+        samples = get_populations()[wildcards.population]
+        sample_str = ",".join(samples)
+        shell("bcftools view -s {sample_str} -Oz -o {output[0]} {input}")
+        shell("bcftools index {output[0]}")
+
+rule run_vcftools:
+    input:
+        "results/vcf/{population}.vcf.gz"
+    output:
+        "results/{method}/{population}.txt"
+    run:
+        method_string = method_translation[wildcards.method].format(window_size=config['window_size'])
+        shell("vcftools --gzvcf {input} {method_string} --temp $TEMPDIR --out results/{wildcards.method}/{wildcards.population}")
