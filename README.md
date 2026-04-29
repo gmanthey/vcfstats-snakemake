@@ -1,1 +1,1 @@
-# vcf-snakemake
+# vcfstats-snakemake
